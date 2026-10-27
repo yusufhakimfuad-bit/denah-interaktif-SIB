@@ -101,4 +101,34 @@
     </div>
   </aside>
 </section></main>
-<footer><span>SEKOLAH INDONESIA BANGKOK</span><span>Interactive Map <i>·</i> Prototype</span></footer><script src="script.js"></script></body></html>
+<footer><span>SEKOLAH INDONESIA BANGKOK</span><span>Interactive Map <i>·</i> Prototype</span></footer>
+
+<!-- Firebase SDK (versi compat, agar bisa dipakai dari script.js biasa) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-analytics-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
+
+<!-- Konfigurasi & inisialisasi Firebase -->
+<script>
+  // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+  const firebaseConfig = {
+    apiKey: "AIzaSyDpfPsI1WmeNkduJt5fc6qR5O5ZSJvw914",
+    authDomain: "interactive-map-sib.firebaseapp.com",
+    projectId: "interactive-map-sib",
+    storageBucket: "interactive-map-sib.firebasestorage.app",
+    messagingSenderId: "58261975355",
+    appId: "1:58261975355:web:f52d0fc99116b172ef071e",
+    measurementId: "G-S5W8C1VKDJ"
+  };
+
+  firebase.initializeApp(firebaseConfig);
+
+  // Tersedia global untuk script.js
+  const db = firebase.firestore();
+  const storage = firebase.storage();
+  try { firebase.analytics(); } catch (e) { console.warn("Analytics tidak aktif:", e); }
+</script>
+
+<script src="script.js"></script>
+</body></html>
