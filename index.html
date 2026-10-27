@@ -1,6 +1,72 @@
 <!doctype html>
 <html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SIB Interactive Map</title><link rel="stylesheet" href="style.css"></head>
+<title>SIB Interactive Map</title><style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Inter,system-ui,sans-serif;background:#f3f5f7;color:#17212b}
+header{display:flex;justify-content:space-between;align-items:center;padding:22px 28px;background:white;border-bottom:1px solid #d8dee4}
+header b{font-size:12px;letter-spacing:.12em;color:#177ddc}h1{margin:5px 0;font-size:28px}header p{margin:0;color:#68737d}
+header select{padding:10px;border:1px solid #d8dee4;border-radius:9px;background:white;font-weight:700}
+main{display:grid;grid-template-columns:300px 1fr;gap:16px;padding:16px;min-height:calc(100vh - 125px)}
+aside,.map{background:white;border:1px solid #d8dee4;border-radius:16px;overflow:hidden}aside{padding:16px}
+label{display:block;font-weight:700;font-size:14px;margin-bottom:7px}input{width:100%;padding:12px;border:1px solid #d8dee4;border-radius:9px;margin-bottom:10px}
+#results{display:grid;gap:6px;max-height:240px;overflow:auto}.result{border:1px solid transparent;background:#f6f7f8;border-radius:8px;text-align:left;padding:9px;cursor:pointer}.result:hover,.result.active{border-color:#b9d5f2;background:#e8f2ff}.result small{display:block;color:#68737d}
+.card{margin-top:14px;border:1px solid #d8dee4;border-radius:13px;padding:14px}.card small{color:#177ddc;font-weight:800;letter-spacing:.1em}.card h2{margin:5px 0}.card #meta{color:#68737d;font-size:13px}.card p{font-size:14px;line-height:1.5}
+button{border:1px solid #d8dee4;background:white;border-radius:8px;padding:9px 12px;cursor:pointer;touch-action:manipulation}
+.map{position:relative;background:#eef0f2;min-width:0}
+.tools{position:absolute;z-index:5;right:12px;top:12px;background:white;border:1px solid #d8dee4;border-radius:10px;padding:6px;display:flex;gap:5px;box-shadow:0 4px 16px #0001}
+#viewport{height:100%;min-height:620px;overflow:hidden;touch-action:none;cursor:grab;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+#viewport.dragging{cursor:grabbing}
+#canvas{transform-origin:0 0;width:max-content;will-change:transform}
+#canvas svg{display:block;width:min(1100px,88vw);height:auto;filter:drop-shadow(0 14px 24px #0001);user-select:none;-webkit-user-select:none;pointer-events:auto}
+#canvas .room{cursor:pointer;transition:filter .15s,stroke .15s;touch-action:none}#canvas .room:hover{filter:brightness(.94)}#canvas .room.selected{stroke:#177ddc!important;stroke-width:5!important}
+
+/* Floating information panel — styled like the supplied kiosk mockup. */
+.room-panel{position:absolute;z-index:10;right:18px;bottom:18px;width:min(330px,calc(100% - 36px));padding:10px;background:#cbd5df;border:0;border-radius:0;box-shadow:0 10px 28px #0002;transform:translateY(18px) scale(.98);opacity:0;visibility:hidden;pointer-events:none;transition:opacity .18s ease,transform .18s ease,visibility .18s ease}
+.room-panel.open{opacity:1;visibility:visible;pointer-events:auto;transform:translateY(0) scale(1)}
+.panel-close{position:absolute;z-index:2;right:8px;top:8px;width:34px;height:34px;padding:0;border:0;border-radius:50%;font-size:24px;line-height:1;background:#ffffffdd;color:#26323d;box-shadow:0 2px 8px #0001}
+.panel-close:hover{background:#fff}
+.room-photo{height:170px;background:#fff;display:flex;align-items:center;justify-content:center;overflow:hidden;margin:22px 16px 0}
+.room-photo img{width:100%;height:100%;object-fit:cover;display:block}.room-photo img[hidden]{display:none}
+#roomPhotoPlaceholder{text-align:center;font-size:17px;font-style:italic;line-height:1.35;color:#17212b;padding:20px}.room-photo span{font-size:14px}
+.room-panel-body{padding:0 16px 14px}.room-panel-kicker{margin-top:10px;text-align:center;font-size:13px;letter-spacing:.12em;font-weight:800;color:#4e5d6b}.room-panel h2{margin:5px 0 2px;text-align:center;font-size:22px;line-height:1.15}.room-panel-meta{text-align:center;color:#596877;font-size:13px}.room-panel p{margin:10px 0 0;text-align:center;font-size:14px;line-height:1.45;color:#26323d}
+footer{text-align:center;padding:10px;color:#68737d;font-size:12px}
+@media(max-width:900px){main{grid-template-columns:1fr}aside{order:2}.map{order:1}#viewport{min-height:500px}header{padding:18px;align-items:flex-start;gap:12px}h1{font-size:23px}.room-panel{right:12px;bottom:12px;width:min(360px,calc(100% - 24px))}}
+@media(max-width:600px){.room-panel{left:12px;right:12px;width:auto}.room-photo{height:145px}.room-panel h2{font-size:20px}}
+
+/* Local admin/editor mode */
+.header-actions{display:flex;align-items:center;gap:8px}.admin-toggle{font-weight:800}.admin-toggle.active{background:#17212b;color:#fff;border-color:#17212b}
+.admin-panel{position:absolute;z-index:20;right:18px;top:18px;bottom:18px;width:min(430px,calc(100% - 36px));background:#fff;border:1px solid #d8dee4;border-radius:16px;box-shadow:0 18px 50px #0003;transform:translateX(calc(100% + 24px));opacity:0;visibility:hidden;pointer-events:none;transition:transform .2s ease,opacity .2s ease,visibility .2s ease;overflow:hidden}
+.admin-panel.open{transform:translateX(0);opacity:1;visibility:visible;pointer-events:auto}.admin-panel-header{display:flex;justify-content:space-between;align-items:flex-start;padding:18px;border-bottom:1px solid #e1e5e9;background:#f8fafb}.admin-kicker{font-size:11px;letter-spacing:.14em;font-weight:900;color:#177ddc}.admin-panel h2{margin:4px 0 0;font-size:21px}.admin-body{padding:16px;overflow:auto;height:calc(100% - 78px)}.admin-body label{margin-top:10px}.admin-body label:first-child{margin-top:0}.admin-input{width:100%;padding:10px 11px;border:1px solid #cfd7df;border-radius:8px;background:#fff;font:inherit}.admin-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.admin-textarea{resize:vertical;min-height:96px}.admin-photo-tools{display:grid;grid-template-columns:130px 1fr;gap:10px;align-items:start}.admin-photo-preview{height:100px;border:1px dashed #b8c2cc;border-radius:9px;background:#f6f8fa;display:flex;align-items:center;justify-content:center;text-align:center;color:#68737d;font-size:12px;overflow:hidden}.admin-photo-preview img{width:100%;height:100%;object-fit:cover}.admin-photo-actions{display:flex;flex-direction:column;gap:7px}.admin-button-row{display:flex;flex-wrap:wrap;gap:7px;margin-top:9px}.admin-button-row button,.admin-photo-actions button{font-size:13px}.primary-button{background:#177ddc;color:#fff;border:0;font-weight:800}.danger-button{color:#a33}.admin-save-row{margin-top:14px}.admin-save-row .primary-button{width:100%;padding:12px}.admin-body hr{border:0;border-top:1px solid #e1e5e9;margin:18px 0}.admin-data-actions p{margin:4px 0 0;color:#68737d;font-size:12px;line-height:1.4}.admin-status{min-height:18px;margin-top:12px;font-size:12px;color:#68737d}.admin-status.success{color:#19713a}.admin-status.error{color:#a33}.admin-status.info{color:#177ddc}
+@media(max-width:600px){.header-actions{align-items:stretch}.admin-toggle{padding:9px 10px}.admin-panel{left:12px;right:12px;top:12px;bottom:12px;width:auto}.admin-grid{grid-template-columns:1fr}.admin-photo-tools{grid-template-columns:1fr}.admin-photo-preview{height:150px}}
+
+/* Visual polish: warm museum-kiosk interface */
+:root{--ink:#182c3a;--muted:#667985;--blue:#1676a8;--gold:#e5b85c;--paper:#f4f3ef}
+body{font-family:Inter,"Segoe UI",system-ui,sans-serif;background:var(--paper);color:var(--ink);letter-spacing:-.01em}
+header{position:relative;gap:24px;padding:24px clamp(18px,3vw,42px);background:linear-gradient(110deg,#fff 0%,#f8faf9 72%,#edf4f4 100%);border-bottom:1px solid #dfe6e5}
+.brand-lockup{display:flex;align-items:center;gap:16px;min-width:0}.brand-mark{width:54px;height:54px;flex:0 0 54px;display:grid;place-items:center;border-radius:16px;background:linear-gradient(145deg,#1b82b2,#104b6c);color:#fff;font-weight:900;letter-spacing:.06em;font-size:15px;box-shadow:0 8px 18px #104b6c2c}
+.brand-copy b{display:block;font-size:10px;letter-spacing:.18em;color:var(--blue);font-weight:850}h1{font-size:clamp(23px,2.1vw,32px);letter-spacing:-.045em;font-weight:760;margin:5px 0 4px;color:#152d3b}header p{font-size:13px;color:var(--muted);margin:0}
+.header-actions{gap:9px;flex-wrap:wrap;justify-content:flex-end}.live-pill{display:flex;align-items:center;gap:7px;padding:9px 12px;border:1px solid #dce7e7;border-radius:999px;background:#fff;color:#52707a;font-size:10px;font-weight:850;letter-spacing:.1em;white-space:nowrap}.live-pill span,.map-caption-dot{width:7px;height:7px;background:#4baf8a;border-radius:50%;display:inline-block;box-shadow:0 0 0 3px #4baf8a22}
+header select{font:inherit;font-size:12px;color:var(--ink);border-color:#dbe2e3;border-radius:10px;padding:10px 12px}main{grid-template-columns:minmax(270px,320px) minmax(0,1fr);gap:18px;padding:18px clamp(12px,2vw,26px) 14px;min-height:calc(100vh - 135px)}main>aside{padding:22px 18px;background:#fff;border:1px solid #e3e7e6;border-radius:20px;box-shadow:0 5px 24px #243c4a08;overflow:auto}
+.sidebar-heading{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;margin-bottom:20px}.eyebrow{display:block;font-size:9px;letter-spacing:.16em;font-weight:900;color:#6c8791}.sidebar-heading h2{font-size:21px;letter-spacing:-.04em;margin:5px 0 0}.room-count{font-size:9px;font-weight:900;letter-spacing:.08em;color:#58717c;background:#eef4f4;border-radius:7px;padding:7px 8px;white-space:nowrap}
+label{font-size:11px;font-weight:800;color:#506773;margin-bottom:8px}.search-wrap{position:relative}.search-wrap>span{position:absolute;left:13px;top:7px;font-size:24px;color:#69838c;pointer-events:none}.search-wrap input{padding:12px 12px 12px 39px;margin-bottom:14px;background:#f8faf9;border-color:#e1e8e7;border-radius:11px;font-size:13px}.search-wrap input:focus{background:#fff;border-color:#6da9c0}
+#results{max-height:clamp(180px,31vh,340px);gap:6px;padding-right:3px}#results::-webkit-scrollbar,.admin-body::-webkit-scrollbar{width:6px}#results::-webkit-scrollbar-thumb,.admin-body::-webkit-scrollbar-thumb{background:#d4dfe0;border-radius:99px}.result{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;text-align:left;padding:11px 10px;border:1px solid transparent;border-radius:10px;background:#f7f9f8;color:#233b49}.result b{font-size:12px;font-weight:750}.result small{font-size:10px;text-align:right;max-width:48%;line-height:1.4;color:#71838a}.result:hover{background:#eef6f7;border-color:#d9e9eb}.result.active{background:#e8f3f7;border-color:#9bc6d5;box-shadow:inset 3px 0 #1979a6}
+.card{position:relative;margin-top:18px;padding:17px;border:1px solid #dfe9e9;border-radius:15px;background:linear-gradient(145deg,#f7fbfb,#edf5f5)}.card-icon{width:34px;height:34px;display:grid;place-items:center;margin-bottom:12px;border-radius:10px;background:#dceef2;color:#166d91;font-size:23px}.card small{font-size:9px;letter-spacing:.15em;color:#65818a}.card h2{font-size:19px;letter-spacing:-.03em;margin:6px 0 5px}.card #meta{font-size:11px;color:#66808a;line-height:1.5}.card p{font-size:12px;color:#4e626c;line-height:1.65;margin-bottom:0}
+.map-legend{display:grid;gap:11px;padding:21px 3px 4px;font-size:11px;color:#627780}.map-legend .eyebrow{margin-bottom:3px}.map-legend>div{display:flex;align-items:center;gap:9px}.legend-dot{width:8px;height:8px;display:inline-block;border-radius:50%;flex:0 0 8px}.legend-dot.blue{background:#2185b2}.legend-dot.gold{background:#e0ae4d}.legend-dot.gray{background:#a8b4b8}
+.map{border:1px solid #dce3e3;border-radius:20px;background:#e9efed;box-shadow:0 8px 28px #263d480a;isolation:isolate}.map:before{content:"";position:absolute;inset:0;pointer-events:none;background-image:radial-gradient(#c6d3d0 .7px,transparent .7px);background-size:18px 18px;opacity:.5;z-index:0}#viewport{position:relative;z-index:1;min-height:620px;background:transparent;cursor:grab}#canvas svg{filter:drop-shadow(0 18px 24px #233c4b20)}#canvas .room{transition:filter .16s ease,opacity .16s ease}#canvas .room:hover{filter:brightness(.96) drop-shadow(0 0 3px #1478a555)}#canvas .room.selected{stroke:#087eae!important;stroke-width:6!important;filter:drop-shadow(0 0 5px #087eae55)}
+.map-caption{position:absolute;z-index:4;left:18px;top:17px;display:flex;align-items:center;gap:9px;padding:9px 12px;background:#ffffffeb;border:1px solid #e0e8e6;border-radius:999px;box-shadow:0 4px 14px #1734440a;color:#55717b;font-size:9px;font-weight:900;letter-spacing:.12em;pointer-events:none}.map-caption i{font-style:normal;color:#aab8ba}.tools{right:16px;top:16px;gap:4px;padding:5px;border:1px solid #dce5e4;border-radius:13px;background:#ffffffed;box-shadow:0 6px 20px #1a374514}.tools button{min-width:36px;min-height:36px;border:0;border-radius:9px;color:#274451;font-weight:750;font-size:14px}.tools button:hover{background:#e8f3f5;color:#126b91}#reset{font-size:10px;padding:0 11px}#fullscreen{font-size:19px}
+.room-panel{right:20px;bottom:20px;width:min(330px,calc(100% - 40px));padding:10px;background:#fff;border:1px solid #e0e7e6;border-radius:18px;box-shadow:0 20px 55px #132d3b30}.room-photo{height:180px;margin:20px 8px 0;border-radius:11px;background:linear-gradient(145deg,#eef4f3,#e2ebeb)}.room-photo img{border-radius:11px}#roomPhotoPlaceholder{font-size:14px;color:#61767e}#roomPhotoPlaceholder:before{content:"▧";display:block;font-size:25px;font-style:normal;color:#9db1b7;margin-bottom:6px}.room-panel-body{padding:0 10px 12px}.room-panel-kicker{margin-top:14px;font-size:9px;letter-spacing:.16em;color:#2382a5}.room-panel h2{font-size:22px;letter-spacing:-.04em;color:#1c3542}.room-panel-meta{font-size:11px;line-height:1.6;color:#68808a}.room-panel p{font-size:12px;color:#526771;line-height:1.6}.panel-close{right:13px;top:13px;width:32px;height:32px;background:#ffffffed;border:1px solid #e1e8e7;color:#2c4855}
+.admin-toggle{border-color:#d7e2e2;border-radius:10px;font-size:12px;font-weight:800;color:#3d5965}.admin-toggle:hover,.admin-toggle.active{background:#173c50;color:#fff;border-color:#173c50}.admin-panel{border-color:#dce5e5;border-radius:18px;box-shadow:0 22px 65px #132d3b38}.admin-panel-header{background:#f4f8f7;border-color:#e2e9e8;padding:20px}.admin-kicker{font-size:9px;letter-spacing:.17em;color:#167ba5}.admin-panel h2{font-size:20px;letter-spacing:-.03em;color:#1c3542}.admin-body{padding:18px}.admin-body label{font-size:11px;color:#4d6772}.admin-input{font-size:13px;border-color:#dbe4e3;border-radius:9px;padding:11px}.admin-input:focus{border-color:#5ca4bd;outline:none;box-shadow:0 0 0 3px #5ca4bd22}.primary-button{background:#126f98;border-radius:10px}.primary-button:hover{background:#0b577a}.admin-button-row button,.admin-photo-actions button{border-radius:9px}.admin-status{font-size:11px}
+footer{display:flex;justify-content:space-between;gap:10px;padding:12px clamp(18px,3vw,42px);color:#7a8b8e;font-size:9px;letter-spacing:.1em;text-transform:uppercase}footer span:first-child{font-weight:850;color:#58737d}footer i{font-style:normal;padding:0 4px;color:#c3cece}
+@media(max-width:900px){header{align-items:flex-start}.live-pill{display:none}main{grid-template-columns:1fr;gap:12px}main>aside{order:2;padding:17px}.map{order:1;min-height:0}#viewport{min-height:60vh;height:60vh}#results{max-height:210px}.map-legend{grid-template-columns:1fr 1fr;align-items:start}.map-legend .eyebrow{grid-column:1/-1}.room-panel{right:12px;bottom:12px;width:min(310px,calc(100% - 24px))}}
+@media(max-width:600px){header{padding:16px;display:block}.brand-mark{width:44px;height:44px;flex-basis:44px;border-radius:13px;font-size:13px}.brand-lockup{align-items:flex-start}.brand-copy b{font-size:8px;letter-spacing:.13em;padding-top:3px}h1{font-size:23px}header p{font-size:11px;line-height:1.5}.header-actions{margin-top:15px;justify-content:space-between}header select{flex:1;min-width:0}main{padding:10px;gap:10px}main>aside{border-radius:15px}.map{border-radius:15px}#viewport{min-height:58vh;height:58vh}.map-caption{left:10px;top:10px;padding:8px 9px;font-size:8px}.tools{right:9px;top:9px;gap:2px;padding:4px}.tools button{min-width:32px;min-height:32px;padding:0 8px}#reset{font-size:9px;padding:0 7px}.room-panel{left:12px;right:12px;bottom:12px;width:auto;max-height:75%;overflow:auto}.room-photo{height:145px}.room-panel h2{font-size:19px}.map-legend{grid-template-columns:1fr}footer{font-size:8px;padding:11px 14px}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;scroll-behavior:auto!important}}
+.map:fullscreen{width:100vw;height:100vh;border:0;border-radius:0;background:#e9efed}.map:fullscreen #viewport{height:100vh;min-height:100vh}.map:fullscreen #canvas svg{width:min(1500px,94vw)}.map:fullscreen .room-panel{max-height:calc(100vh - 40px)}
+
+/* Firebase admin login */
+.admin-fields{border:0;margin:0;padding:0;min-width:0}.admin-fields:disabled{opacity:.45}
+.admin-auth{padding:14px;margin-bottom:16px;border:1px solid #dbe4e3;border-radius:12px;background:#f7faf9}.admin-auth .admin-input{margin-bottom:8px}.admin-auth .primary-button{width:100%;padding:11px}
+#authSignedIn{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:12px;color:#4d6772}#authSignedIn[hidden],#authSignedOut[hidden]{display:none}#authUser{word-break:break-all}
+</style></head>
 <body>
 <header><div class="brand-lockup"><div class="brand-mark" aria-hidden="true">SIB</div><div class="brand-copy"><b>SEKOLAH INDONESIA BANGKOK</b><h1>Interactive School Map</h1><p>Jelajahi ruang, temukan cerita di balik setiap sudut sekolah.</p></div></div><div class="header-actions"><span class="live-pill"><span></span> PETA INTERAKTIF</span><select id="floor" aria-label="Pilih lantai"><option>Lantai 1</option></select><button id="adminToggle" type="button" class="admin-toggle">⚙ Admin</button></div></header>
 <main><aside>
@@ -10,7 +76,120 @@
 </aside>
 <section class="map">
   <div class="map-caption"><span class="map-caption-dot"></span><span>DENAH SEKOLAH</span><i>•</i><span>LANTAI 1</span></div><div class="tools"><button id="out" aria-label="Zoom out" title="Perkecil">−</button><button id="reset" title="Atur ulang tampilan">Reset</button><button id="in" aria-label="Zoom in" title="Perbesar">+</button><button id="fullscreen" aria-label="Layar penuh" title="Layar penuh">⛶</button></div>
-  <div id="viewport"><div id="canvas"></div></div>
+  <div id="viewport"><div id="canvas"><svg viewBox="0 0 1950 950" xmlns="http://www.w3.org/2000/svg" font-family="Helvetica, Arial, sans-serif" xmlns:c2pa="http://c2pa.org/manifest">
+  <rect x="0" y="0" width="1950" height="950" fill="#ffffff"/>
+
+  <text x="975" y="35" text-anchor="middle" font-size="28" font-weight="700" fill="#1a1a1a">Denah Sekolah Indonesia Bangkok (SIB)</text>
+  <text x="975" y="58" text-anchor="middle" font-size="13" fill="#777">Diperbarui sesuai skeleton baru</text>
+
+  <!-- ===== Combined background for Building A + Building B ===== -->
+  <rect x="0" y="88" width="1635" height="742" rx="10" fill="#f6f6f6" stroke="#ccc" stroke-width="1"/>
+
+  <!-- Outer boundary top line (single stroke, roof line) -->
+  <path d="M15,100 H1160" stroke="#111" stroke-width="3" fill="none"/>
+
+  <!-- Row 1 rooms -->
+  <g stroke="#222" stroke-width="2.5" fill="#ffffff">
+    <rect id="ruang-112" class="room" data-room-id="ruang-112" x="15" y="100" width="155" height="205"/>
+    <rect id="ruang-113" class="room" data-room-id="ruang-113" x="170" y="100" width="210" height="145"/>
+    <rect id="ruang-114" class="room" data-room-id="ruang-114" x="380" y="100" width="168" height="145"/>
+    <rect id="ruang-115" class="room" data-room-id="ruang-115" x="548" y="100" width="267" height="145"/>
+    <rect id="perpustakaan" class="room" data-room-id="perpustakaan" x="815" y="100" width="70" height="145"/>
+    <rect id="ruang-kristen" class="room" data-room-id="ruang-kristen" x="885" y="100" width="50" height="145"/>
+    <rect id="toilet-cewe" class="room" data-room-id="toilet-cewe" x="935" y="100" width="115" height="145"/>
+    <rect id="toilet-cowo" class="room" data-room-id="toilet-cowo" x="1050" y="100" width="110" height="145"/>
+  </g>
+  <text x="92" y="207" text-anchor="middle" font-size="15" fill="#111">Ruang 112</text>
+  <text x="275" y="177" text-anchor="middle" font-size="15" fill="#111">Ruang 113</text>
+  <text x="464" y="177" text-anchor="middle" font-size="15" fill="#111">Ruang 114</text>
+  <text x="681" y="177" text-anchor="middle" font-size="15" fill="#111">Ruang 115</text>
+  <text x="850" y="167" text-anchor="middle" font-size="10.5" fill="#111">Per-</text>
+  <text x="850" y="180" text-anchor="middle" font-size="10.5" fill="#111">pus-</text>
+  <text x="850" y="193" text-anchor="middle" font-size="10.5" fill="#111">takaan</text>
+  <text x="910" y="172" text-anchor="middle" font-size="10.5" fill="#111">Ruang</text>
+  <text x="910" y="186" text-anchor="middle" font-size="10.5" fill="#111">Kristen</text>
+  <text x="992" y="177" text-anchor="middle" font-size="13" fill="#111">Toilet Cewe</text>
+  <text x="1105" y="177" text-anchor="middle" font-size="13" fill="#111">Toilet Cowo</text>
+
+  <!-- Left column -->
+  <g stroke="#222" stroke-width="2.5" fill="#ffffff">
+    <rect id="ruang-111" class="room" data-room-id="ruang-111" x="15" y="305" width="155" height="265"/>
+    <rect id="ruang-110" class="room" data-room-id="ruang-110" x="15" y="570" width="155" height="250"/>
+  </g>
+  <text x="92" y="440" text-anchor="middle" font-size="15" fill="#111">Ruangan 111</text>
+  <text x="92" y="698" text-anchor="middle" font-size="15" fill="#111">Ruang 110</text>
+
+  <!-- Lorong (corridor) label in the gap between row1 and row2 -->
+  <text x="450" y="290" text-anchor="middle" font-size="17" fill="#555" font-style="italic">Lorong</text>
+
+  <!-- Row 2 (kedai .. multimedia) -->
+  <g stroke="#222" stroke-width="2.5" fill="#ffffff">
+    <rect id="kedai-109" class="room" data-room-id="kedai-109" x="255" y="320" width="100" height="120"/>
+    <rect id="ruang-108" class="room" data-room-id="ruang-108" x="355" y="320" width="130" height="120"/>
+    <rect id="ruang-107" class="room" data-room-id="ruang-107" x="485" y="320" width="130" height="120"/>
+    <rect id="ruang-106" class="room" data-room-id="ruang-106" x="615" y="320" width="135" height="120"/>
+    <rect id="ruang-105" class="room" data-room-id="ruang-105" x="750" y="320" width="135" height="120"/>
+    <rect id="kepsek-104" class="room" data-room-id="kepsek-104" x="885" y="320" width="115" height="120"/>
+    <rect id="multimedia-103" class="room" data-room-id="multimedia-103" x="1000" y="320" width="155" height="120"/>
+  </g>
+  <text x="305" y="385" text-anchor="middle" font-size="13" fill="#111">Kedai (109)</text>
+  <text x="420" y="385" text-anchor="middle" font-size="14" fill="#111">108</text>
+  <text x="550" y="385" text-anchor="middle" font-size="14" fill="#111">107</text>
+  <text x="682" y="385" text-anchor="middle" font-size="14" fill="#111">106</text>
+  <text x="817" y="385" text-anchor="middle" font-size="14" fill="#111">105</text>
+  <text x="942" y="378" text-anchor="middle" font-size="12" fill="#111">Kepsek</text>
+  <text x="942" y="394" text-anchor="middle" font-size="12" fill="#111">(104)</text>
+  <text x="1077" y="378" text-anchor="middle" font-size="12" fill="#111">Multimedia</text>
+  <text x="1077" y="394" text-anchor="middle" font-size="12" fill="#111">(103)</text>
+
+  <!-- Admin / Guru column -->
+  <g stroke="#222" stroke-width="2.5" fill="#ffffff">
+    <rect id="ruang-admin-102" class="room" data-room-id="ruang-admin-102" x="1000" y="475" width="155" height="65"/>
+    <rect id="ruang-guru-101" class="room" data-room-id="ruang-guru-101" x="1000" y="540" width="155" height="280"/>
+  </g>
+  <text x="1077" y="500" text-anchor="middle" font-size="12" fill="#111">(102)</text>
+  <text x="1077" y="516" text-anchor="middle" font-size="12" fill="#111">Ruang Admin</text>
+  <text x="1077" y="683" text-anchor="middle" font-size="14" fill="#111">Ruang Guru (101)</text>
+
+  <!-- Door tick marks (small perpendicular marks like in sketch) -->
+  <g stroke="#222" stroke-width="2">
+    <line x1="380" y1="100" x2="380" y2="108"/>
+    <line x1="548" y1="100" x2="548" y2="108"/>
+    <line x1="1000" y1="315" x2="1008" y2="315"/>
+    <line x1="1000" y1="540" x2="1000" y2="548"/>
+  </g>
+
+  <!-- ===== Connector "bridge" line to Building B (top / roof) ===== -->
+  <path d="M1160,100 H1615" stroke="#111" stroke-width="3" fill="none"/>
+
+  <!-- ===== Second corridor connecting main building to Building B (open lorong, no walls) ===== -->
+  <text x="1222" y="360" text-anchor="middle" font-size="17" fill="#555" font-style="italic">Lorong</text>
+
+  <!-- ===== Continuous bottom boundary connecting Building A to Building B ===== -->
+  <path d="M15,820 H1455" stroke="#111" stroke-width="3" fill="none"/>
+
+  <!-- ===== Building B (dapur / uks / 119-121) ===== -->
+  <g stroke="#222" stroke-width="2.5" fill="#ffffff">
+    <rect id="dapur" class="room" data-room-id="dapur" x="1290" y="100" width="325" height="150"/>
+    <rect id="uks" class="room" data-room-id="uks" x="1290" y="250" width="165" height="105"/>
+    <rect id="ruang-119" class="room" data-room-id="ruang-119" x="1290" y="355" width="165" height="125"/>
+    <rect id="ruang-120" class="room" data-room-id="ruang-120" x="1290" y="480" width="165" height="195"/>
+    <rect id="ruang-121" class="room" data-room-id="ruang-121" x="1290" y="675" width="165" height="145"/>
+  </g>
+  <text x="1452" y="182" text-anchor="middle" font-size="17" fill="#111">Dapur</text>
+  <text x="1372" y="307" text-anchor="middle" font-size="14" fill="#111">UKS</text>
+  <text x="1372" y="422" text-anchor="middle" font-size="14" fill="#111">Ruang 119</text>
+  <text x="1372" y="583" text-anchor="middle" font-size="14" fill="#111">Ruang 120</text>
+  <text x="1372" y="753" text-anchor="middle" font-size="14" fill="#111">Ruang 121</text>
+
+  <!-- ===== Building C cluster (Ruang 122 SBK) ===== -->
+  <rect x="1620" y="208" width="270" height="290" rx="10" fill="#f6f6f6" stroke="#ccc" stroke-width="1"/>
+  <g stroke="#222" stroke-width="2.5" fill="#ffffff">
+    <rect id="ruang-122-sbk" class="room" data-room-id="ruang-122-sbk" x="1635" y="230" width="240" height="255"/>
+  </g>
+  <text x="1755" y="362" text-anchor="middle" font-size="15" fill="#111">Ruang 122 SBK</text>
+
+</svg></div></div>
 
   <aside id="roomPanel" class="room-panel" aria-hidden="true">
     <button id="closePanel" class="panel-close" type="button" aria-label="Tutup informasi">×</button>
@@ -36,6 +215,20 @@
     </div>
 
     <div class="admin-body">
+      <div class="admin-auth">
+        <div id="authSignedOut">
+          <label for="authEmail">Login admin</label>
+          <input id="authEmail" class="admin-input" type="email" placeholder="Email admin" autocomplete="username">
+          <input id="authPassword" class="admin-input" type="password" placeholder="Kata sandi" autocomplete="current-password">
+          <button id="loginBtn" type="button" class="primary-button">Masuk</button>
+        </div>
+        <div id="authSignedIn" hidden>
+          <span>Masuk sebagai <b id="authUser"></b></span>
+          <button id="logoutBtn" type="button">Keluar</button>
+        </div>
+      </div>
+
+      <fieldset id="adminFields" class="admin-fields" disabled>
       <label for="adminRoomSelect">Ruangan</label>
       <select id="adminRoomSelect" class="admin-input"></select>
 
@@ -87,8 +280,8 @@
       <hr>
       <div class="admin-data-actions">
         <div>
-          <strong>Data lokal</strong>
-          <p>Perubahan disimpan di browser ini. Export untuk membuat backup.</p>
+          <strong>Data online</strong>
+          <p>Perubahan disimpan di Firebase dan terlihat oleh semua pengunjung. Export untuk membuat backup.</p>
         </div>
         <div class="admin-button-row">
           <button id="exportData" type="button">Export data</button>
@@ -97,38 +290,867 @@
           <input id="importDataInput" type="file" accept="application/json,.json" hidden>
         </div>
       </div>
+      </fieldset>
       <div id="adminStatus" class="admin-status" role="status"></div>
     </div>
   </aside>
 </section></main>
 <footer><span>SEKOLAH INDONESIA BANGKOK</span><span>Interactive Map <i>·</i> Prototype</span></footer>
-
-<!-- Firebase SDK (versi compat, agar bisa dipakai dari script.js biasa) -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-analytics-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
-
-<!-- Konfigurasi & inisialisasi Firebase -->
 <script>
-  // For Firebase JS SDK v7.20.0 and later, measurementId is optional
-  const firebaseConfig = {
-    apiKey: "AIzaSyDpfPsI1WmeNkduJt5fc6qR5O5ZSJvw914",
-    authDomain: "interactive-map-sib.firebaseapp.com",
-    projectId: "interactive-map-sib",
-    storageBucket: "interactive-map-sib.firebasestorage.app",
-    messagingSenderId: "58261975355",
-    appId: "1:58261975355:web:f52d0fc99116b172ef071e",
-    measurementId: "G-S5W8C1VKDJ"
-  };
+const $ = (s) => document.querySelector(s);
 
+const state = {
+  rooms: [],
+  selected: null,
+  scale: 1,
+  x: 0,
+  y: 0,
+  pointers: new Map(),
+  gesture: null,
+  suppressClickUntil: 0,
+  adminOpen: false,
+  adminPhotoData: null,
+  adminPhotoBlob: null,
+  adminPhotoChanged: false
+};
+
+const viewport = $("#viewport");
+const canvas = $("#canvas");
+const search = $("#search");
+const results = $("#results");
+const infoName = $("#name");
+const infoMeta = $("#meta");
+const infoDescription = $("#desc");
+const roomPanel = $("#roomPanel");
+const closePanel = $("#closePanel");
+const panelName = $("#panelName");
+const panelMeta = $("#panelMeta");
+const panelDescription = $("#panelDescription");
+const roomPhotoImage = $("#roomPhotoImage");
+const roomPhotoPlaceholder = $("#roomPhotoPlaceholder");
+
+const adminToggle = $("#adminToggle");
+const adminPanel = $("#adminPanel");
+const closeAdmin = $("#closeAdmin");
+const adminRoomSelect = $("#adminRoomSelect");
+const adminName = $("#adminName");
+const adminCategory = $("#adminCategory");
+const adminFloor = $("#adminFloor");
+const adminTeacher = $("#adminTeacher");
+const adminCapacity = $("#adminCapacity");
+const adminFacilities = $("#adminFacilities");
+const adminDescription = $("#adminDescription");
+const adminPhotoInput = $("#adminPhotoInput");
+const adminPhotoPreview = $("#adminPhotoPreview");
+const choosePhoto = $("#choosePhoto");
+const removePhoto = $("#removePhoto");
+const saveRoom = $("#saveRoom");
+const exportData = $("#exportData");
+const importData = $("#importData");
+const importDataInput = $("#importDataInput");
+const resetData = $("#resetData");
+const adminStatus = $("#adminStatus");
+const adminFields = $("#adminFields");
+const authSignedOut = $("#authSignedOut");
+const authSignedIn = $("#authSignedIn");
+const authEmail = $("#authEmail");
+const authPassword = $("#authPassword");
+const authUser = $("#authUser");
+const loginBtn = $("#loginBtn");
+const logoutBtn = $("#logoutBtn");
+
+const MIN_SCALE = 0.45;
+const MAX_SCALE = 3.5;
+
+// ------------------------- Firebase -------------------------
+const firebaseConfig = {
+  apiKey: "AIzaSyDpfPsI1WmeNkduJt5fc6qR5O5ZSJvw914",
+  authDomain: "interactive-map-sib.firebaseapp.com",
+  projectId: "interactive-map-sib",
+  storageBucket: "interactive-map-sib.firebasestorage.app",
+  messagingSenderId: "58261975355",
+  appId: "1:58261975355:web:f52d0fc99116b172ef071e",
+  measurementId: "G-S5W8C1VKDJ"
+};
+
+let db = null;
+let auth = null;
+let storage = null;
+try {
   firebase.initializeApp(firebaseConfig);
+  db = firebase.firestore();
+  auth = firebase.auth();
+  storage = firebase.storage();
+  try { firebase.analytics(); } catch (e) { /* analytics tidak aktif (mis. file://) */ }
+} catch (error) {
+  console.warn("Firebase tidak tersedia, memakai data bawaan:", error);
+}
 
-  // Tersedia global untuk script.js
-  const db = firebase.firestore();
-  const storage = firebase.storage();
-  try { firebase.analytics(); } catch (e) { console.warn("Analytics tidak aktif:", e); }
+// ------------------------- Data bawaan (dari rooms.json) -------------------------
+const DEFAULT_ROOMS = [
+  {
+    "id": "ruang-112",
+    "name": "Ruang 112",
+    "category": "Kelas",
+    "description": "Ruang kelas",
+    "floor": 1
+  },
+  {
+    "id": "ruang-113",
+    "name": "Ruang 113",
+    "category": "Kelas",
+    "description": "Ruang kelas",
+    "floor": 1
+  },
+  {
+    "id": "ruang-114",
+    "name": "Ruang 114",
+    "category": "Kelas",
+    "description": "Ruang kelas",
+    "floor": 1
+  },
+  {
+    "id": "ruang-115",
+    "name": "Ruang 115",
+    "category": "Kelas",
+    "description": "Ruang kelas",
+    "floor": 1
+  },
+  {
+    "id": "perpustakaan",
+    "name": "Perpustakaan",
+    "category": "Fasilitas",
+    "description": "Perpustakaan sekolah",
+    "floor": 1
+  },
+  {
+    "id": "ruang-kristen",
+    "name": "Ruang Kristen",
+    "category": "Fasilitas",
+    "description": "Ruang ibadah",
+    "floor": 1
+  },
+  {
+    "id": "toilet-cewe",
+    "name": "Toilet Cewe",
+    "category": "Fasilitas",
+    "description": "Toilet",
+    "floor": 1
+  },
+  {
+    "id": "toilet-cowo",
+    "name": "Toilet Cowo",
+    "category": "Fasilitas",
+    "description": "Toilet",
+    "floor": 1
+  },
+  {
+    "id": "ruang-111",
+    "name": "Ruangan 111",
+    "category": "Kelas",
+    "description": "Ruangan sekolah",
+    "floor": 1
+  },
+  {
+    "id": "ruang-110",
+    "name": "Ruang 110",
+    "category": "Kelas",
+    "description": "Ruangan sekolah",
+    "floor": 1
+  },
+  {
+    "id": "kedai-109",
+    "name": "Kedai (109)",
+    "category": "Fasilitas",
+    "description": "Kedai",
+    "floor": 1
+  },
+  {
+    "id": "ruang-108",
+    "name": "Ruang 108",
+    "category": "Kelas",
+    "description": "Ruang kelas",
+    "floor": 1
+  },
+  {
+    "id": "ruang-107",
+    "name": "Ruang 107",
+    "category": "Kelas",
+    "description": "Ruang kelas",
+    "floor": 1
+  },
+  {
+    "id": "ruang-106",
+    "name": "Ruang 106",
+    "category": "Kelas",
+    "description": "Ruang kelas",
+    "floor": 1
+  },
+  {
+    "id": "ruang-105",
+    "name": "Ruang 105",
+    "category": "Kelas",
+    "description": "Ruang kelas",
+    "floor": 1
+  },
+  {
+    "id": "kepsek-104",
+    "name": "Kepsek (104)",
+    "category": "Kantor",
+    "description": "Ruang kepala sekolah",
+    "floor": 1
+  },
+  {
+    "id": "multimedia-103",
+    "name": "Multimedia (103)",
+    "category": "Fasilitas",
+    "description": "Ruang multimedia",
+    "floor": 1
+  },
+  {
+    "id": "ruang-admin-102",
+    "name": "Ruang Admin (102)",
+    "category": "Kantor",
+    "description": "Ruang administrasi",
+    "floor": 1
+  },
+  {
+    "id": "ruang-guru-101",
+    "name": "Ruang Guru (101)",
+    "category": "Kantor",
+    "description": "Ruang guru",
+    "floor": 1
+  },
+  {
+    "id": "dapur",
+    "name": "Dapur",
+    "category": "Fasilitas",
+    "description": "Dapur sekolah",
+    "floor": 1
+  },
+  {
+    "id": "uks",
+    "name": "UKS",
+    "category": "Fasilitas",
+    "description": "Unit Kesehatan Sekolah",
+    "floor": 1
+  },
+  {
+    "id": "ruang-119",
+    "name": "Ruang 119",
+    "category": "Kelas",
+    "description": "Ruangan sekolah",
+    "floor": 1
+  },
+  {
+    "id": "ruang-120",
+    "name": "Ruang 120",
+    "category": "Kelas",
+    "description": "Ruangan sekolah",
+    "floor": 1
+  },
+  {
+    "id": "ruang-121",
+    "name": "Ruang 121",
+    "category": "Kelas",
+    "description": "Ruangan sekolah",
+    "floor": 1
+  },
+  {
+    "id": "ruang-122-sbk",
+    "name": "Ruang 122 SBK",
+    "category": "Fasilitas",
+    "description": "Ruang SBK",
+    "floor": 1
+  }
+];
+
+
+async function init() {
+  state.rooms = DEFAULT_ROOMS.map((room) => ({ ...room }));
+  updateRoomCount();
+  attachRoomEvents();
+  renderResults(state.rooms);
+  populateAdminRoomSelect();
+  requestAnimationFrame(() => {
+    centerAtDefault();
+    applyTransform();
+    if (state.rooms[0]) loadAdminRoom(state.rooms[0].id);
+  });
+  await loadRemoteRooms();
+}
+
+function updateRoomCount() {
+  const roomCount = $("#roomCount");
+  if (roomCount) roomCount.textContent = `${state.rooms.length} RUANG`;
+}
+
+// Ambil perubahan dari Firestore dan timpa data bawaan (berdasarkan id).
+async function loadRemoteRooms() {
+  if (!db) return;
+  try {
+    const snapshot = await db.collection("rooms").get();
+    const overrides = new Map();
+    snapshot.forEach((doc) => {
+      const data = doc.data();
+      delete data.updatedAt;
+      overrides.set(doc.id, data);
+    });
+    state.rooms = DEFAULT_ROOMS.map((base) => ({ ...base, ...(overrides.get(base.id) || {}) }));
+    const previous = adminRoomSelect.value;
+    renderResults(filterRooms());
+    populateAdminRoomSelect();
+    if (previous) adminRoomSelect.value = previous;
+    if (state.selected) selectRoom(state.selected, false);
+    if (!state.adminOpen) loadAdminRoom(previous || state.rooms[0]?.id);
+  } catch (error) {
+    console.warn("Tidak dapat memuat data Firestore, memakai data bawaan:", error);
+  }
+}
+
+function attachRoomEvents() {
+  canvas.querySelectorAll(".room").forEach((roomEl) => {
+    roomEl.addEventListener("click", (event) => {
+      event.stopPropagation();
+      if (performance.now() < state.suppressClickUntil) return;
+      selectRoom(roomEl.dataset.roomId, false);
+    });
+  });
+}
+
+function renderResults(list) {
+  results.innerHTML = "";
+
+  if (!list.length) {
+    results.innerHTML = '<div style="color:#68737d;font-size:14px">Ruangan tidak ditemukan.</div>';
+    return;
+  }
+
+  list.forEach((room) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "result" + (room.id === state.selected ? " active" : "");
+    button.dataset.id = room.id;
+    button.innerHTML = `
+      <b>${escapeHtml(room.name)}</b>
+      <small>${escapeHtml(room.category)} • Lantai ${escapeHtml(room.floor)}</small>
+    `;
+    button.addEventListener("click", () => selectRoom(room.id, true));
+    results.appendChild(button);
+  });
+}
+
+function selectRoom(id, focusMap = false) {
+  const room = state.rooms.find((item) => item.id === id);
+  const roomEl = canvas.querySelector(`[data-room-id="${CSS.escape(id)}"]`);
+  if (!room || !roomEl) return;
+
+  state.selected = id;
+  canvas.querySelectorAll(".room").forEach((element) => {
+    element.classList.toggle("selected", element.dataset.roomId === id);
+  });
+
+  infoName.textContent = room.name;
+  infoMeta.textContent = `${room.category} • Lantai ${room.floor}`;
+  infoDescription.textContent = room.description || "Belum ada deskripsi.";
+
+  panelName.textContent = room.name;
+  panelMeta.textContent = buildPanelMeta(room);
+  panelDescription.textContent = room.description || "Belum ada deskripsi.";
+
+  if (room.image) {
+    roomPhotoImage.src = room.image;
+    roomPhotoImage.alt = `Foto ${room.name}`;
+    roomPhotoImage.hidden = false;
+    roomPhotoPlaceholder.hidden = true;
+  } else {
+    roomPhotoImage.removeAttribute("src");
+    roomPhotoImage.alt = "";
+    roomPhotoImage.hidden = true;
+    roomPhotoPlaceholder.hidden = false;
+  }
+
+  roomPanel.classList.add("open");
+  roomPanel.setAttribute("aria-hidden", "false");
+
+  results.querySelectorAll(".result").forEach((element) => {
+    element.classList.toggle("active", element.dataset.id === id);
+  });
+
+  if (focusMap) focusOnRoom(roomEl);
+}
+
+function buildPanelMeta(room) {
+  const extras = [room.category, `Lantai ${room.floor}`];
+  if (room.teacher) extras.push(`Wali: ${room.teacher}`);
+  if (room.capacity) extras.push(`Kapasitas: ${room.capacity}`);
+  return extras.join(" • ");
+}
+
+function getMapMetrics() {
+  const svg = canvas.querySelector("svg");
+  if (!svg) return null;
+  const viewBox = svg.viewBox.baseVal;
+  const rect = svg.getBoundingClientRect();
+  const baseWidth = rect.width / Math.max(state.scale, 0.0001);
+  const baseHeight = rect.height / Math.max(state.scale, 0.0001);
+  const baseScale = baseWidth / (viewBox.width || 1950);
+  return {
+    svg,
+    viewBoxWidth: viewBox.width || 1950,
+    viewBoxHeight: viewBox.height || 950,
+    baseScale,
+    baseWidth,
+    baseHeight
+  };
+}
+
+function focusOnRoom(roomEl) {
+  const metrics = getMapMetrics();
+  if (!metrics) return;
+  const box = roomEl.getBBox();
+  const centerX = box.x + box.width / 2;
+  const centerY = box.y + box.height / 2;
+  const roomBaseWidth = box.width * metrics.baseScale;
+  const roomBaseHeight = box.height * metrics.baseScale;
+  const targetScale = clamp(
+    Math.min(2.2, Math.max(1.05, 360 / Math.max(roomBaseWidth, roomBaseHeight))),
+    MIN_SCALE,
+    MAX_SCALE
+  );
+  state.scale = targetScale;
+  state.x = viewport.clientWidth / 2 - centerX * metrics.baseScale * targetScale;
+  state.y = viewport.clientHeight / 2 - centerY * metrics.baseScale * targetScale;
+  clampPan();
+  applyTransform();
+}
+
+function centerAtDefault() {
+  const metrics = getMapMetrics();
+  if (!metrics) return;
+  state.scale = 1;
+  state.x = (viewport.clientWidth - metrics.baseWidth) / 2;
+  state.y = (viewport.clientHeight - metrics.baseHeight) / 2;
+  clampPan();
+}
+
+function applyTransform() {
+  clampPan();
+  canvas.style.transform = `translate3d(${state.x}px, ${state.y}px, 0) scale(${state.scale})`;
+}
+
+function clampPan() {
+  const metrics = getMapMetrics();
+  if (!metrics) return;
+  const renderedWidth = metrics.baseWidth * state.scale;
+  const renderedHeight = metrics.baseHeight * state.scale;
+  const viewportWidth = viewport.clientWidth;
+  const viewportHeight = viewport.clientHeight;
+  if (renderedWidth <= viewportWidth) state.x = (viewportWidth - renderedWidth) / 2;
+  else state.x = clamp(state.x, viewportWidth - renderedWidth, 0);
+  if (renderedHeight <= viewportHeight) state.y = (viewportHeight - renderedHeight) / 2;
+  else state.y = clamp(state.y, viewportHeight - renderedHeight, 0);
+}
+
+function setZoom(nextScale, centerX = viewport.clientWidth / 2, centerY = viewport.clientHeight / 2) {
+  const oldScale = state.scale;
+  const newScale = clamp(nextScale, MIN_SCALE, MAX_SCALE);
+  if (newScale === oldScale) return;
+  const ratio = newScale / oldScale;
+  state.x = centerX - (centerX - state.x) * ratio;
+  state.y = centerY - (centerY - state.y) * ratio;
+  state.scale = newScale;
+  applyTransform();
+}
+
+function resetView() {
+  centerAtDefault();
+  applyTransform();
+}
+
+function getPointerDistance(a, b) { return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY); }
+function getPointerCenter(a, b) { return { x: (a.clientX + b.clientX) / 2, y: (a.clientY + b.clientY) / 2 }; }
+
+function beginPan(pointer) {
+  state.gesture = { type: "pan", pointerId: pointer.pointerId, startX: pointer.clientX, startY: pointer.clientY, startMapX: state.x, startMapY: state.y, moved: false };
+}
+
+function beginPinch() {
+  const points = [...state.pointers.values()];
+  if (points.length < 2) return;
+  const a = points[0]; const b = points[1];
+  const center = getPointerCenter(a, b); const rect = viewport.getBoundingClientRect();
+  state.gesture = {
+    type: "pinch",
+    startDistance: Math.max(1, getPointerDistance(a, b)),
+    startScale: state.scale,
+    startCenterX: center.x,
+    startCenterY: center.y,
+    anchorX: (center.x - rect.left - state.x) / state.scale,
+    anchorY: (center.y - rect.top - state.y) / state.scale,
+    moved: false
+  };
+}
+
+function closeRoomPanel() {
+  roomPanel.classList.remove("open");
+  roomPanel.setAttribute("aria-hidden", "true");
+  state.selected = null;
+  canvas.querySelectorAll(".room").forEach((element) => element.classList.remove("selected"));
+  results.querySelectorAll(".result").forEach((element) => element.classList.remove("active"));
+}
+
+closePanel.addEventListener("click", (event) => { event.stopPropagation(); closeRoomPanel(); });
+roomPhotoImage.addEventListener("error", () => { roomPhotoImage.hidden = true; roomPhotoPlaceholder.hidden = false; });
+
+viewport.addEventListener("wheel", (event) => {
+  event.preventDefault();
+  const rect = viewport.getBoundingClientRect();
+  setZoom(state.scale * (event.deltaY < 0 ? 1.1 : 0.9), event.clientX - rect.left, event.clientY - rect.top);
+}, { passive: false });
+
+viewport.addEventListener("pointerdown", (event) => {
+  if (event.pointerType === "mouse" && event.button !== 0) return;
+  state.pointers.set(event.pointerId, event);
+  viewport.setPointerCapture(event.pointerId);
+  if (state.pointers.size === 1) beginPan(event);
+  else if (state.pointers.size === 2) { state.suppressClickUntil = performance.now() + 350; beginPinch(); }
+});
+
+viewport.addEventListener("pointermove", (event) => {
+  if (!state.pointers.has(event.pointerId)) return;
+  state.pointers.set(event.pointerId, event);
+  if (state.pointers.size >= 2) {
+    if (!state.gesture || state.gesture.type !== "pinch") beginPinch();
+    const points = [...state.pointers.values()]; const a = points[0]; const b = points[1];
+    const distance = Math.max(1, getPointerDistance(a, b)); const center = getPointerCenter(a, b);
+    const rect = viewport.getBoundingClientRect(); const centerX = center.x - rect.left; const centerY = center.y - rect.top;
+    const gesture = state.gesture; if (!gesture || gesture.type !== "pinch") return;
+    if (Math.abs(distance - gesture.startDistance) > 4 || Math.hypot(centerX - (gesture.startCenterX - rect.left), centerY - (gesture.startCenterY - rect.top)) > 4) {
+      gesture.moved = true; state.suppressClickUntil = performance.now() + 350;
+    }
+    state.scale = clamp(gesture.startScale * (distance / gesture.startDistance), MIN_SCALE, MAX_SCALE);
+    state.x = centerX - gesture.anchorX * state.scale;
+    state.y = centerY - gesture.anchorY * state.scale;
+    clampPan(); applyTransform(); return;
+  }
+  if (!state.gesture || state.gesture.type !== "pan") return;
+  const dx = event.clientX - state.gesture.startX; const dy = event.clientY - state.gesture.startY;
+  if (Math.hypot(dx, dy) > 6) { state.gesture.moved = true; state.suppressClickUntil = performance.now() + 350; }
+  state.x = state.gesture.startMapX + dx; state.y = state.gesture.startMapY + dy; applyTransform();
+});
+
+function endPointer(event) {
+  const wasPinching = state.gesture?.type === "pinch"; const moved = state.gesture?.moved;
+  state.pointers.delete(event.pointerId);
+  if (state.pointers.size >= 2) { beginPinch(); return; }
+  if (state.pointers.size === 1) { beginPan([...state.pointers.values()][0]); if (wasPinching || moved) state.suppressClickUntil = performance.now() + 350; return; }
+  if (wasPinching || moved) state.suppressClickUntil = performance.now() + 350;
+  state.gesture = null; viewport.classList.remove("dragging");
+}
+viewport.addEventListener("pointerup", endPointer);
+viewport.addEventListener("pointercancel", endPointer);
+
+$("#in").addEventListener("click", () => setZoom(state.scale * 1.2));
+const fullscreenButton = $("#fullscreen");
+fullscreenButton.addEventListener("click", async () => {
+  const target = document.querySelector(".map");
+  try { if (!document.fullscreenElement) { await target.requestFullscreen(); fullscreenButton.textContent = "⤢"; fullscreenButton.setAttribute("aria-label", "Keluar dari layar penuh"); } else { await document.exitFullscreen(); } } catch (error) { console.warn("Mode layar penuh tidak tersedia:", error); }
+});
+document.addEventListener("fullscreenchange", () => { if (!document.fullscreenElement) { fullscreenButton.textContent = "⛶"; fullscreenButton.setAttribute("aria-label", "Layar penuh"); } requestAnimationFrame(() => { clampPan(); applyTransform(); }); });
+$("#out").addEventListener("click", () => setZoom(state.scale / 1.2));
+$("#reset").addEventListener("click", resetView);
+
+function filterRooms() {
+  const query = search.value.trim().toLowerCase();
+  return state.rooms.filter((room) =>
+    `${room.name} ${room.category} ${room.description} ${room.teacher || ""} ${room.facilities || ""}`.toLowerCase().includes(query)
+  );
+}
+
+search.addEventListener("input", () => renderResults(filterRooms()));
+
+window.addEventListener("resize", () => { clampPan(); applyTransform(); });
+
+// ------------------------- Admin / editor mode (Firebase) -------------------------
+adminToggle.addEventListener("click", () => toggleAdmin(true));
+closeAdmin.addEventListener("click", () => toggleAdmin(false));
+adminRoomSelect.addEventListener("change", () => loadAdminRoom(adminRoomSelect.value));
+choosePhoto.addEventListener("click", () => adminPhotoInput.click());
+removePhoto.addEventListener("click", () => {
+  state.adminPhotoData = null;
+  state.adminPhotoBlob = null;
+  state.adminPhotoChanged = true;
+  renderAdminPhoto(null);
+  setAdminStatus("Foto akan dihapus saat disimpan.", "info");
+});
+adminPhotoInput.addEventListener("change", async () => {
+  const file = adminPhotoInput.files?.[0];
+  adminPhotoInput.value = "";
+  if (!file) return;
+  try {
+    const { blob, dataUrl } = await resizeImage(file, 1200, 900, 0.82);
+    state.adminPhotoBlob = blob;
+    state.adminPhotoData = dataUrl;
+    state.adminPhotoChanged = true;
+    renderAdminPhoto(dataUrl);
+    setAdminStatus("Foto siap disimpan.", "info");
+  } catch (error) {
+    setAdminStatus("Foto tidak dapat diproses.", "error");
+  }
+});
+saveRoom.addEventListener("click", saveAdminRoom);
+exportData.addEventListener("click", exportRoomData);
+importData.addEventListener("click", () => importDataInput.click());
+importDataInput.addEventListener("change", importRoomData);
+resetData.addEventListener("click", resetRemoteData);
+loginBtn.addEventListener("click", loginAdmin);
+authPassword.addEventListener("keydown", (event) => { if (event.key === "Enter") loginAdmin(); });
+logoutBtn.addEventListener("click", () => auth && auth.signOut());
+
+if (auth) auth.onAuthStateChanged(updateAuthUI);
+else updateAuthUI(null);
+
+function updateAuthUI(user) {
+  authSignedOut.hidden = !!user;
+  authSignedIn.hidden = !user;
+  authUser.textContent = user?.email || "";
+  adminFields.disabled = !user;
+  adminHint();
+}
+
+function adminHint() {
+  if (!auth) setAdminStatus("Firebase tidak tersedia. Periksa koneksi internet.", "error");
+  else if (!auth.currentUser) setAdminStatus("Masuk sebagai admin untuk mengedit data.", "info");
+}
+
+async function loginAdmin() {
+  if (!auth) return;
+  const email = authEmail.value.trim();
+  const password = authPassword.value;
+  if (!email || !password) { setAdminStatus("Isi email dan kata sandi.", "error"); return; }
+  loginBtn.disabled = true;
+  try {
+    await auth.signInWithEmailAndPassword(email, password);
+    authPassword.value = "";
+    setAdminStatus("Berhasil masuk.", "success");
+  } catch (error) {
+    setAdminStatus("Login gagal. Periksa email dan kata sandi.", "error");
+  } finally {
+    loginBtn.disabled = false;
+  }
+}
+
+function toggleAdmin(open) {
+  state.adminOpen = open;
+  adminPanel.classList.toggle("open", open);
+  adminPanel.setAttribute("aria-hidden", String(!open));
+  adminToggle.classList.toggle("active", open);
+  if (open) {
+    closeRoomPanel();
+    populateAdminRoomSelect();
+    const id = state.selected || adminRoomSelect.value || state.rooms[0]?.id;
+    if (id) loadAdminRoom(id);
+    adminHint();
+  }
+}
+
+function populateAdminRoomSelect() {
+  adminRoomSelect.innerHTML = state.rooms.map((room) => `<option value="${escapeHtml(room.id)}">${escapeHtml(room.name)}</option>`).join("");
+}
+
+function loadAdminRoom(id) {
+  const room = state.rooms.find((item) => item.id === id);
+  if (!room) return;
+  adminRoomSelect.value = room.id;
+  adminName.value = room.name || "";
+  adminCategory.value = room.category || "";
+  adminFloor.value = room.floor ?? 1;
+  adminTeacher.value = room.teacher || "";
+  adminCapacity.value = room.capacity || "";
+  adminFacilities.value = room.facilities || "";
+  adminDescription.value = room.description || "";
+  state.adminPhotoData = room.image || null;
+  state.adminPhotoBlob = null;
+  state.adminPhotoChanged = false;
+  renderAdminPhoto(state.adminPhotoData);
+  setAdminStatus("");
+}
+
+function renderAdminPhoto(src) {
+  adminPhotoPreview.textContent = "";
+  if (src) {
+    const img = document.createElement("img");
+    img.src = src;
+    img.alt = "Preview foto ruangan";
+    adminPhotoPreview.appendChild(img);
+  } else {
+    adminPhotoPreview.textContent = "Belum ada foto";
+  }
+}
+
+// Batasi & bersihkan field supaya cocok dengan Firestore rules.
+function sanitizeRoomData(source, fallback) {
+  const text = (value, max) => String(value ?? "").trim().slice(0, max);
+  return {
+    name: text(source.name, 100) || fallback.name,
+    category: text(source.category, 50) || "Lainnya",
+    floor: Math.min(20, Math.max(1, Number(source.floor) || 1)),
+    teacher: text(source.teacher, 100),
+    capacity: text(source.capacity, 50),
+    facilities: text(source.facilities, 300),
+    description: text(source.description, 1000) || "Belum ada deskripsi."
+  };
+}
+
+async function saveAdminRoom() {
+  if (!db || !auth?.currentUser) { setAdminStatus("Masuk sebagai admin dulu.", "error"); return; }
+  const room = state.rooms.find((item) => item.id === adminRoomSelect.value);
+  if (!room) return;
+
+  const data = sanitizeRoomData({
+    name: adminName.value,
+    category: adminCategory.value,
+    floor: adminFloor.value,
+    teacher: adminTeacher.value,
+    capacity: adminCapacity.value,
+    facilities: adminFacilities.value,
+    description: adminDescription.value
+  }, room);
+
+  saveRoom.disabled = true;
+  setAdminStatus("Menyimpan…", "info");
+  try {
+    let image = room.image || null;
+    if (state.adminPhotoChanged) {
+      const photoRef = storage.ref(`rooms/${room.id}.jpg`);
+      if (state.adminPhotoBlob) {
+        await photoRef.put(state.adminPhotoBlob, { contentType: "image/jpeg" });
+        image = await photoRef.getDownloadURL();
+      } else {
+        image = null;
+        try { await photoRef.delete(); } catch (e) { /* file mungkin belum ada */ }
+      }
+    }
+
+    const FieldValue = firebase.firestore.FieldValue;
+    await db.collection("rooms").doc(room.id).set({
+      ...data,
+      image: image || FieldValue.delete(),
+      updatedAt: FieldValue.serverTimestamp()
+    }, { merge: true });
+
+    Object.assign(room, data);
+    if (image) room.image = image; else delete room.image;
+    state.adminPhotoChanged = false;
+    state.adminPhotoBlob = null;
+    state.adminPhotoData = room.image || null;
+
+    renderResults(filterRooms());
+    populateAdminRoomSelect();
+    adminRoomSelect.value = room.id;
+    if (state.selected === room.id) selectRoom(room.id, false);
+    setAdminStatus(`${room.name} berhasil disimpan online.`, "success");
+  } catch (error) {
+    console.error(error);
+    setAdminStatus("Gagal menyimpan. Pastikan kamu login sebagai admin dan rules sudah dipasang.", "error");
+  } finally {
+    saveRoom.disabled = false;
+  }
+}
+
+function setAdminStatus(message, type = "") {
+  adminStatus.textContent = message;
+  adminStatus.className = `admin-status ${type}`.trim();
+}
+
+async function resizeImage(file, maxWidth, maxHeight, quality) {
+  if (!file.type.startsWith("image/")) throw new Error("Bukan gambar");
+  const bitmap = await createImageBitmap(file);
+  const ratio = Math.min(1, maxWidth / bitmap.width, maxHeight / bitmap.height);
+  const width = Math.max(1, Math.round(bitmap.width * ratio));
+  const height = Math.max(1, Math.round(bitmap.height * ratio));
+  const offscreen = document.createElement("canvas");
+  offscreen.width = width; offscreen.height = height;
+  offscreen.getContext("2d").drawImage(bitmap, 0, 0, width, height);
+  bitmap.close();
+  const blob = await new Promise((resolve, reject) =>
+    offscreen.toBlob((result) => (result ? resolve(result) : reject(new Error("Gagal membuat gambar"))), "image/jpeg", quality));
+  return { blob, dataUrl: offscreen.toDataURL("image/jpeg", quality) };
+}
+
+function exportRoomData() {
+  const blob = new Blob([JSON.stringify(state.rooms, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url; link.download = "sib-room-data-backup.json"; link.click();
+  URL.revokeObjectURL(url);
+  setAdminStatus("Backup JSON diexport.", "success");
+}
+
+async function importRoomData(event) {
+  const file = event.target.files?.[0];
+  event.target.value = "";
+  if (!file) return;
+  if (!db || !auth?.currentUser) { setAdminStatus("Masuk sebagai admin dulu.", "error"); return; }
+  try {
+    const imported = JSON.parse(await file.text());
+    if (!Array.isArray(imported)) throw new Error("Format tidak valid");
+    const FieldValue = firebase.firestore.FieldValue;
+    const batch = db.batch();
+    const updated = [];
+    state.rooms.forEach((room) => {
+      const incoming = imported.find((item) => item && item.id === room.id);
+      if (!incoming) return;
+      const data = sanitizeRoomData({ ...room, ...incoming }, room);
+      const payload = { ...data, updatedAt: FieldValue.serverTimestamp() };
+      // Hanya URL https yang diterima; foto lama (data URL) dilewati.
+      const image = typeof incoming.image === "string" && /^https:\/\//.test(incoming.image) && incoming.image.length <= 1500 ? incoming.image : null;
+      if (image) payload.image = image;
+      batch.set(db.collection("rooms").doc(room.id), payload, { merge: true });
+      updated.push({ room, data, image });
+    });
+    if (!updated.length) throw new Error("Tidak ada ruangan yang cocok");
+    await batch.commit();
+    updated.forEach(({ room, data, image }) => { Object.assign(room, data); if (image) room.image = image; });
+    renderResults(filterRooms());
+    populateAdminRoomSelect();
+    loadAdminRoom(state.rooms[0]?.id);
+    if (state.selected) selectRoom(state.selected, false);
+    setAdminStatus("Data berhasil diimport.", "success");
+  } catch (error) {
+    console.error(error);
+    setAdminStatus("Import gagal. Pastikan file JSON berasal dari editor ini dan kamu login sebagai admin.", "error");
+  }
+}
+
+async function resetRemoteData() {
+  if (!db || !auth?.currentUser) { setAdminStatus("Masuk sebagai admin dulu.", "error"); return; }
+  if (!confirm("Hapus semua perubahan online dan kembali ke data awal?")) return;
+  try {
+    const snapshot = await db.collection("rooms").get();
+    const batch = db.batch();
+    snapshot.forEach((doc) => batch.delete(doc.ref));
+    await batch.commit();
+    await Promise.all(state.rooms.filter((room) => room.image).map((room) => storage.ref(`rooms/${room.id}.jpg`).delete().catch(() => {})));
+    location.reload();
+  } catch (error) {
+    console.error(error);
+    setAdminStatus("Reset gagal. Periksa login dan rules.", "error");
+  }
+}
+
+function clamp(value, min, max) { return Math.min(max, Math.max(min, value)); }
+function escapeHtml(value) { return String(value).replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[character])); }
+
+init().catch((error) => {
+  console.error(error);
+  canvas.innerHTML = '<div style="padding:24px;color:#a33">Denah gagal dimuat. Muat ulang halaman.</div>';
+});
 </script>
-
-<script src="script.js"></script>
 </body></html>
