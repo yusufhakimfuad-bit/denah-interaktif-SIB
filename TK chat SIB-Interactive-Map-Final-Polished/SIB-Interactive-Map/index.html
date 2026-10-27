@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SIB Interactive Map</title><link rel="stylesheet" href="style.css"></head>
+<body>
+<header><div class="brand-lockup"><div class="brand-mark" aria-hidden="true">SIB</div><div class="brand-copy"><b>SEKOLAH INDONESIA BANGKOK</b><h1>Interactive School Map</h1><p>Jelajahi ruang, temukan cerita di balik setiap sudut sekolah.</p></div></div><div class="header-actions"><span class="live-pill"><span></span> PETA INTERAKTIF</span><select id="floor" aria-label="Pilih lantai"><option>Lantai 1</option></select><button id="adminToggle" type="button" class="admin-toggle">⚙ Admin</button></div></header>
+<main><aside>
+<div class="sidebar-heading"><div><span class="eyebrow">JELAJAHI SEKOLAH</span><h2>Temukan ruangan</h2></div><span class="room-count" id="roomCount">RUANG</span></div><label for="search">Cari nama atau fasilitas</label><div class="search-wrap"><span aria-hidden="true">⌕</span><input id="search" placeholder="Contoh: Ruang Guru" autocomplete="off"></div>
+<div id="results"></div>
+<section class="card"><div class="card-icon" aria-hidden="true">⌖</div><small>RUANGAN TERPILIH</small><h2 id="name">Pilih sebuah ruangan</h2><div id="meta">Klik ruangan pada denah.</div><p id="desc">Ketuk area pada denah atau cari ruangan dari daftar di atas.</p></section><div class="map-legend"><span class="eyebrow">CARA MENJELAJAHI</span><div><span class="legend-dot blue"></span> Ketuk ruangan untuk melihat info</div><div><span class="legend-dot gold"></span> Cubit / gunakan + − untuk zoom</div><div><span class="legend-dot gray"></span> Geser untuk berpindah area</div></div>
+</aside>
+<section class="map">
+  <div class="map-caption"><span class="map-caption-dot"></span><span>DENAH SEKOLAH</span><i>•</i><span>LANTAI 1</span></div><div class="tools"><button id="out" aria-label="Zoom out" title="Perkecil">−</button><button id="reset" title="Atur ulang tampilan">Reset</button><button id="in" aria-label="Zoom in" title="Perbesar">+</button><button id="fullscreen" aria-label="Layar penuh" title="Layar penuh">⛶</button></div>
+  <div id="viewport"><div id="canvas"></div></div>
+
+  <aside id="roomPanel" class="room-panel" aria-hidden="true">
+    <button id="closePanel" class="panel-close" type="button" aria-label="Tutup informasi">×</button>
+    <div id="roomPhoto" class="room-photo" aria-label="Foto ruangan">
+      <img id="roomPhotoImage" alt="" hidden>
+      <div id="roomPhotoPlaceholder">Foto ruangan<br><span>belum tersedia</span></div>
+    </div>
+    <div class="room-panel-body">
+      <div class="room-panel-kicker">RUANGAN</div>
+      <h2 id="panelName">Pilih ruangan</h2>
+      <div id="panelMeta" class="room-panel-meta">—</div>
+      <p id="panelDescription">Klik salah satu ruangan pada denah untuk melihat informasinya.</p>
+    </div>
+  </aside>
+
+  <aside id="adminPanel" class="admin-panel" aria-hidden="true">
+    <div class="admin-panel-header">
+      <div>
+        <div class="admin-kicker">EDITOR MODE</div>
+        <h2>Edit informasi ruangan</h2>
+      </div>
+      <button id="closeAdmin" class="panel-close" type="button" aria-label="Tutup editor">×</button>
+    </div>
+
+    <div class="admin-body">
+      <label for="adminRoomSelect">Ruangan</label>
+      <select id="adminRoomSelect" class="admin-input"></select>
+
+      <label for="adminName">Nama ruangan</label>
+      <input id="adminName" class="admin-input" type="text">
+
+      <div class="admin-grid">
+        <div>
+          <label for="adminCategory">Kategori</label>
+          <input id="adminCategory" class="admin-input" type="text">
+        </div>
+        <div>
+          <label for="adminFloor">Lantai</label>
+          <input id="adminFloor" class="admin-input" type="number" min="1">
+        </div>
+      </div>
+
+      <div class="admin-grid">
+        <div>
+          <label for="adminTeacher">Wali / penanggung jawab</label>
+          <input id="adminTeacher" class="admin-input" type="text" placeholder="Opsional">
+        </div>
+        <div>
+          <label for="adminCapacity">Kapasitas</label>
+          <input id="adminCapacity" class="admin-input" type="text" placeholder="Contoh: 30 siswa">
+        </div>
+      </div>
+
+      <label for="adminFacilities">Fasilitas</label>
+      <input id="adminFacilities" class="admin-input" type="text" placeholder="Contoh: AC, projector, whiteboard">
+
+      <label for="adminDescription">Deskripsi</label>
+      <textarea id="adminDescription" class="admin-input admin-textarea" rows="4"></textarea>
+
+      <label>Foto ruangan</label>
+      <div class="admin-photo-tools">
+        <div id="adminPhotoPreview" class="admin-photo-preview">Belum ada foto</div>
+        <div class="admin-photo-actions">
+          <input id="adminPhotoInput" type="file" accept="image/*" hidden>
+          <button id="choosePhoto" type="button">📷 Pilih foto</button>
+          <button id="removePhoto" type="button" class="danger-button">Hapus foto</button>
+        </div>
+      </div>
+
+      <div class="admin-save-row">
+        <button id="saveRoom" type="button" class="primary-button">Simpan perubahan</button>
+      </div>
+
+      <hr>
+      <div class="admin-data-actions">
+        <div>
+          <strong>Data lokal</strong>
+          <p>Perubahan disimpan di browser ini. Export untuk membuat backup.</p>
+        </div>
+        <div class="admin-button-row">
+          <button id="exportData" type="button">Export data</button>
+          <button id="importData" type="button">Import data</button>
+          <button id="resetData" type="button" class="danger-button">Reset data</button>
+          <input id="importDataInput" type="file" accept="application/json,.json" hidden>
+        </div>
+      </div>
+      <div id="adminStatus" class="admin-status" role="status"></div>
+    </div>
+  </aside>
+</section></main>
+<footer><span>SEKOLAH INDONESIA BANGKOK</span><span>Interactive Map <i>·</i> Prototype</span></footer><script src="script.js"></script></body></html>

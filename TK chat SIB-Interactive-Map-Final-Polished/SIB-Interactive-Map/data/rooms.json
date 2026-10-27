@@ -1,0 +1,177 @@
+[
+  {
+    "id": "ruang-112",
+    "name": "Ruang 112",
+    "category": "Kelas",
+    "description": "Ruang kelas",
+    "floor": 1
+  },
+  {
+    "id": "ruang-113",
+    "name": "Ruang 113",
+    "category": "Kelas",
+    "description": "Ruang kelas",
+    "floor": 1
+  },
+  {
+    "id": "ruang-114",
+    "name": "Ruang 114",
+    "category": "Kelas",
+    "description": "Ruang kelas",
+    "floor": 1
+  },
+  {
+    "id": "ruang-115",
+    "name": "Ruang 115",
+    "category": "Kelas",
+    "description": "Ruang kelas",
+    "floor": 1
+  },
+  {
+    "id": "perpustakaan",
+    "name": "Perpustakaan",
+    "category": "Fasilitas",
+    "description": "Perpustakaan sekolah",
+    "floor": 1
+  },
+  {
+    "id": "ruang-kristen",
+    "name": "Ruang Kristen",
+    "category": "Fasilitas",
+    "description": "Ruang ibadah",
+    "floor": 1
+  },
+  {
+    "id": "toilet-cewe",
+    "name": "Toilet Cewe",
+    "category": "Fasilitas",
+    "description": "Toilet",
+    "floor": 1
+  },
+  {
+    "id": "toilet-cowo",
+    "name": "Toilet Cowo",
+    "category": "Fasilitas",
+    "description": "Toilet",
+    "floor": 1
+  },
+  {
+    "id": "ruang-111",
+    "name": "Ruangan 111",
+    "category": "Kelas",
+    "description": "Ruangan sekolah",
+    "floor": 1
+  },
+  {
+    "id": "ruang-110",
+    "name": "Ruang 110",
+    "category": "Kelas",
+    "description": "Ruangan sekolah",
+    "floor": 1
+  },
+  {
+    "id": "kedai-109",
+    "name": "Kedai (109)",
+    "category": "Fasilitas",
+    "description": "Kedai",
+    "floor": 1
+  },
+  {
+    "id": "ruang-108",
+    "name": "Ruang 108",
+    "category": "Kelas",
+    "description": "Ruang kelas",
+    "floor": 1
+  },
+  {
+    "id": "ruang-107",
+    "name": "Ruang 107",
+    "category": "Kelas",
+    "description": "Ruang kelas",
+    "floor": 1
+  },
+  {
+    "id": "ruang-106",
+    "name": "Ruang 106",
+    "category": "Kelas",
+    "description": "Ruang kelas",
+    "floor": 1
+  },
+  {
+    "id": "ruang-105",
+    "name": "Ruang 105",
+    "category": "Kelas",
+    "description": "Ruang kelas",
+    "floor": 1
+  },
+  {
+    "id": "kepsek-104",
+    "name": "Kepsek (104)",
+    "category": "Kantor",
+    "description": "Ruang kepala sekolah",
+    "floor": 1
+  },
+  {
+    "id": "multimedia-103",
+    "name": "Multimedia (103)",
+    "category": "Fasilitas",
+    "description": "Ruang multimedia",
+    "floor": 1
+  },
+  {
+    "id": "ruang-admin-102",
+    "name": "Ruang Admin (102)",
+    "category": "Kantor",
+    "description": "Ruang administrasi",
+    "floor": 1
+  },
+  {
+    "id": "ruang-guru-101",
+    "name": "Ruang Guru (101)",
+    "category": "Kantor",
+    "description": "Ruang guru",
+    "floor": 1
+  },
+  {
+    "id": "dapur",
+    "name": "Dapur",
+    "category": "Fasilitas",
+    "description": "Dapur sekolah",
+    "floor": 1
+  },
+  {
+    "id": "uks",
+    "name": "UKS",
+    "category": "Fasilitas",
+    "description": "Unit Kesehatan Sekolah",
+    "floor": 1
+  },
+  {
+    "id": "ruang-119",
+    "name": "Ruang 119",
+    "category": "Kelas",
+    "description": "Ruangan sekolah",
+    "floor": 1
+  },
+  {
+    "id": "ruang-120",
+    "name": "Ruang 120",
+    "category": "Kelas",
+    "description": "Ruangan sekolah",
+    "floor": 1
+  },
+  {
+    "id": "ruang-121",
+    "name": "Ruang 121",
+    "category": "Kelas",
+    "description": "Ruangan sekolah",
+    "floor": 1
+  },
+  {
+    "id": "ruang-122-sbk",
+    "name": "Ruang 122 SBK",
+    "category": "Fasilitas",
+    "description": "Ruang SBK",
+    "floor": 1
+  }
+]
